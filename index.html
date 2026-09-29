@@ -40,11 +40,14 @@ label.f{display:block;font-weight:600;font-size:13px;margin:14px 0 6px}
   <p class="sub">Monthly EPF contribution from basic &amp; gross salary.</p>
 
   <label class="f">Basic salary (monthly)</label>
-  <div class="inp"><b>₹</b><input id="basic" type="number" inputmode="decimal" min="0" placeholder="Please enter the basic salary from the Payslip"></div>
+  <div class="inp"><b>₹</b><input id="basic" type="number" inputmode="decimal" min="0" placeholder="e.g. 20000" value="20000"></div>
 
   <label class="f">Gross salary (monthly)</label>
-  <div class="inp"><b>₹</b><input id="gross" type="number" inputmode="decimal" min="0" placeholder="Please enter gross earning from the the Payslip"></div>
+  <div class="inp"><b>₹</b><input id="gross" type="number" inputmode="decimal" min="0" placeholder="e.g. 40000" value="40000"></div>
   <div class="err" id="err"></div>
+
+  <label class="f">Monthly CTC (optional)</label>
+  <div class="inp"><b>₹</b><input id="ctcin" type="number" inputmode="decimal" min="0" placeholder="Fill to fix CTC; gross is derived"></div>
 
   <label class="f">PF wage ceiling</label>
   <div class="seg" id="ceil">
@@ -73,7 +76,18 @@ label.f{display:block;font-weight:600;font-size:13px;margin:14px 0 6px}
     <div class="row d"><span>Total PF credited / month</span><b id="tot" style="color:var(--ok)">₹0</b></div>
   </div>
 
-  <p class="note">PF wage = lower of basic salary and the selected ceiling. Net take-home = gross − employee PF − professional tax. Employer's 12% is split into EPS (8.33%) and EPF; EPS is calculated on wages up to the selected ceiling. Figures are indicative; check your payslip or employer for exact treatment.</p>
+  <div class="card">
+    <div class="row d" style="border-top:0"><span>Gross salary</span><b id="gv">₹0</b></div>
+    <div class="row d"><span>+ Employer contribution (EPS + EPF)</span><b id="erc">₹0</b></div>
+    <div class="row d"><span><b>Monthly CTC</b></span><b id="ctc" style="color:var(--accent);font-size:18px">₹0</b></div>
+    <div class="row d"><span>Annual CTC</span><b id="actc">₹0</b></div>
+    <div class="row d"><span>− Employer contribution</span><b id="w1">₹0</b></div>
+    <div class="row d"><span>− Employee PF</span><b id="w2">₹0</b></div>
+    <div class="row d"><span>− Professional tax</span><b id="w3">₹0</b></div>
+    <div class="row d"><span><b>= Net take-home</b></span><b id="w4" style="color:var(--ok);font-size:18px">₹0</b></div>
+  </div>
+
+  <p class="note">PF wage = lower of basic salary and the selected ceiling. Monthly CTC = gross salary + employer contribution (EPS + EPF). Your CTC is held fixed at the gross you enter plus the employer share at the ₹15,000 ceiling; at a higher ceiling the extra employer share is taken out of gross, which lowers net take-home. Net take-home = gross − employee PF − professional tax. Employer's 12% is split into EPS (8.33%) and EPF; EPS is always calculated on wages up to ₹15,000, whichever ceiling is selected. Figures are indicative; check your payslip or employer for exact treatment.</p>
 </div>
 <script>
 var RATE=0.12, ceil=15000;
@@ -81,11 +95,14 @@ var $=function(i){return document.getElementById(i)};
 var fmt=function(n){return "₹"+Math.round(n).toLocaleString("en-IN")};
 function calc(){
   var b=parseFloat($("basic").value)||0, g=parseFloat($("gross").value)||0;
-  $("err").textContent = (b>g && g>0) ? "Basic salary is higher than gross salary — please check." : "";
+  var c=parseFloat($("ctcin").value)||0;
   var wage=Math.min(b,ceil);
-  var emp=wage*RATE, er=wage*RATE;
-  var eps=wage*0.0833, epf=er-eps;
-  $("epsl").innerHTML="&nbsp;&nbsp;↳ EPS (8.33%, wage capped at "+fmt(ceil)+")";
+  var emp=Math.round(wage*RATE), er=Math.round(wage*RATE);
+  var gi=$("gross");
+  var base=Math.round(Math.min(b,15000)*RATE);
+  if(c>0){ g=Math.max(c-er,0); gi.value=g; gi.readOnly=true; } else { gi.readOnly=false; g=Math.max(g+base-er,0); }
+  $("err").textContent = (b>g && g>0) ? "Basic salary is higher than gross salary — please check." : "";
+  var eps=Math.round(Math.min(b,15000)*0.0833), epf=er-eps;
   var pt=$("pt").checked?200:0;
   $("wage").textContent=fmt(wage);
   $("emp").textContent=fmt(emp); $("e2").textContent=fmt(emp);
@@ -93,8 +110,12 @@ function calc(){
   $("er").textContent=fmt(er); $("eps").textContent=fmt(eps); $("epf").textContent=fmt(epf);
   $("tot").textContent=fmt(emp+er);
   $("net").textContent=fmt(Math.max(g-emp-pt,0));
+  $("gv").textContent=fmt(g); $("erc").textContent=fmt(er);
+  $("ctc").textContent=fmt(g+er); $("actc").textContent=fmt((g+er)*12);
+  $("w1").textContent=fmt(er); $("w2").textContent=fmt(emp); $("w3").textContent=fmt(pt);
+  $("w4").textContent=fmt(Math.max(g+er-er-emp-pt,0));
 }
-["basic","gross","pt"].forEach(function(i){$(i).addEventListener("input",calc);$(i).addEventListener("change",calc)});
+["basic","gross","ctcin","pt"].forEach(function(i){$(i).addEventListener("input",calc);$(i).addEventListener("change",calc)});
 document.querySelectorAll("#ceil button").forEach(function(btn){
   btn.addEventListener("click",function(){
     document.querySelectorAll("#ceil button").forEach(function(x){x.classList.remove("on")});
